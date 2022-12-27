@@ -46,6 +46,7 @@ namespace Maui.Map.Leaflet.Tests
         [Fact]
         public void CheckIfPinAlreadyExist()
         {
+            //prepare
             var pin = new Pin
             {
                 Key = "pin-1",
@@ -54,9 +55,14 @@ namespace Maui.Map.Leaflet.Tests
             };
 
             var map = new Leaflet();
+            
+            //Execute functionnality
             map.AddPin(pin);
-            //Act Exception
+
+            //Act Listen exception
             var exception = Record.Exception(() => map.AddPin(pin));
+
+            // Assert Exception
             Assert.IsAssignableFrom<PinAlreadyExistException>(exception);
         }
 

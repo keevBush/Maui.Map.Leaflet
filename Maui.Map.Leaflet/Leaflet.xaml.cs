@@ -101,7 +101,8 @@ public partial class Leaflet : WebView
         {
             if (string.IsNullOrEmpty(pin.Key))
                 throw new PinMustHaveKeyException();
-
+            if (Pins.Select(p => p.Key).Contains(pin.Key))
+                throw new PinAlreadyExistException();
             Pins.Add(pin);
         });
         PinAdded?.Invoke(this, pins);
