@@ -7,10 +7,7 @@ namespace Maui.Map.Leaflet;
 
 public partial class Leaflet : WebView
 {
-	public Leaflet()
-	{
-		InitializeComponent();
-	}
+	
 
     #region Events
     public event EventHandler<Pin[]> PinAdded;
@@ -81,7 +78,12 @@ public partial class Leaflet : WebView
 
     #endregion
 
-
+    #region Constructor
+    public Leaflet()
+    {
+        InitializeComponent();
+    }
+    #endregion
     #region Overrides
     public virtual void OnLoad()
     {
@@ -109,9 +111,29 @@ public partial class Leaflet : WebView
         OnPinsAdded(pins);
     }
 
-    public void RemovePin(params Pin[] pins)
+    public Pin UpdatePin(Pin pin)
     {
+        if(string.IsNullOrEmpty(pin.Key))
+            throw new PinMustHaveKeyException();
+        
+        if(!Pins.Select(p => p.Key).Contains(pin.Key))
+            throw new PinMustExistException();
 
+        Pins.Remove(pin);
+        Pins.Add(pin);
+
+        return pin;
+    }
+
+    public void DeletePin(Pin pin)
+    {
+        if (string.IsNullOrEmpty(pin.Key))
+            throw new PinMustHaveKeyException();
+
+        if (!Pins.Select(p => p.Key).Contains(pin.Key))
+            throw new PinMustExistException();
+
+        Pins.Remove(pin);
     }
     #endregion
 
