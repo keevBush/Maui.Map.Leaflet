@@ -1,3 +1,4 @@
+using Maui.Map.Leaflet.Exceptions;
 using Maui.Map.Leaflet.Models;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -95,7 +96,14 @@ public partial class Leaflet : WebView
     #region Actions
     public void AddPin(params Pin[] pins)
     {
-        pins.ToList().ForEach(pin =>Pins.Add(pin));
+
+        pins.ToList().ForEach(pin =>
+        {
+            if (string.IsNullOrEmpty(pin.Key))
+                throw new PinMustHaveKeyException();
+
+            Pins.Add(pin);
+        });
         PinAdded?.Invoke(this, pins);
         OnPinsAdded(pins);
     }
