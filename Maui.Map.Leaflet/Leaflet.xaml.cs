@@ -1,22 +1,27 @@
+using Maui.Map.Leaflet.EventArgs;
 using Maui.Map.Leaflet.Exceptions;
 using Maui.Map.Leaflet.Models;
+using Microsoft.Maui.Controls;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Globalization;
+using System.Linq;
 
 namespace Maui.Map.Leaflet;
 
 public partial class Leaflet : WebView
 {
-	public Leaflet()
-	{
-		InitializeComponent();
-	}
 
-    #region Events
+#if ANDROID
+    partial void ChangedHandler(object sender);
+    partial void ChangingHandler(object sender, HandlerChangingEventArgs e);
+#endif
+    partial void ExecuteJavascript(object sender, string jsScript);
+#region Events
     public event EventHandler<Pin[]> PinAdded;
-    #endregion
-    #region Collection Properties
-
+    public event EventHandler<MapClickedEventArg> MapCliqued;
+#endregion
+#region Collection Properties
     public static BindableProperty PinsProperty = BindableProperty.Create(
         propertyName: nameof(Pins),
         returnType: typeof(IEnumerable<Pin>),
@@ -24,23 +29,26 @@ public partial class Leaflet : WebView
         defaultValue: new ObservableCollection<Pin>(), 
         propertyChanged: (bindable, oldValue, newValue) => OnItemsSourceChanged(bindable, oldValue, newValue));
 
-    #region Handler
+#region Handler
     private static void OnItemsSourceChanged(BindableObject bindable, object oldValue, object newValue)
     {
         void newValueINotifyCollectionChanged_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
         {
-            var wraplayout = bindable as WebView;
+            var map = bindable as Leaflet;
 
             if (e.OldItems != null)
-                foreach (var item in e.OldItems)
+                foreach (var pin in e.OldItems)
                 {
                     //! Remove form WebView with js
                 }
 
             if (e.NewItems != null)
-                foreach (var item in e.NewItems)
+                foreach (var pin in e.NewItems)
                 {
-                    //! Qdd item WebView with js
+#if WINDOWS
+                    map.EvaluateJavaScriptAsync($"AddPin({((Pin)pin).Latitude},{((Pin)pin).Longitude},`{((Pin)pin).Key}`)");
+#endif
+                    //! Add item WebView with js
                 }
 
         }
@@ -58,16 +66,28 @@ public partial class Leaflet : WebView
             newValueINotifyCollectionChanged.CollectionChanged += newValueINotifyCollectionChanged_CollectionChanged;
         }
     }
-    #endregion
+#endregion
     public IList<Pin> Pins
     {
         get => (IList<Pin>)GetValue(PinsProperty);
         set => SetValue(PinsProperty, value);
     }
-    #endregion
-    #region Commands Properties
+#endregion
+#region Commands Properties
+#if WINDOWS
+    public string Port 
+    {
+        get { return (string)GetValue(PortProperty); }
+        set { SetValue(PortProperty, value); }
+    }
 
-
+    public static BindableProperty PortProperty = BindableProperty.Create(
+        propertyName: nameof(Port),
+        returnType: typeof(string),
+        declaringType: typeof(Leaflet),
+        defaultValue: "9696"
+    );
+#endif
     public Command PinAddedCommand
     {
         get { return (Command)GetValue(PinAddedCommandProperty); }
@@ -79,10 +99,72 @@ public partial class Leaflet : WebView
         declaringType: typeof(Leaflet),
         defaultValue: null);
 
-    #endregion
+    public Command MapTappedCommand
+    {
+        get { return (Command)GetValue(MapTappedCommandProperty); }
+        set { SetValue(MapTappedCommandProperty, value); }
+    }
+    public static BindableProperty MapTappedCommandProperty = BindableProperty.Create(
+        propertyName: nameof(MapTappedCommand),
+        returnType: typeof(Command),
+        declaringType: typeof(Leaflet),
+        defaultValue: null);
+
+#endregion
+
+#region Constructor
+    public Leaflet()
+    {
+        InitializeComponent();
+        Navigated += Leaflet_Navigated;
+#if WINDOWS
+    LeafletController.LeafletServerRequest += LeafletController_LeafletServerRequest;
+#endif
+    }
 
 
-    #region Overrides
+
+    private void Leaflet_Navigated(object sender, WebNavigatedEventArgs e) =>
+        ExecuteJavascriptFunctionAsync("InitializeMap()");
+#endregion
+#region Overrides
+    protected override void OnHandlerChanged()
+    {
+        base.OnHandlerChanged();
+#if ANDROID
+        ChangedHandler(this);
+#endif
+    }
+
+    protected override void OnHandlerChanging(HandlerChangingEventArgs args)
+    {
+        base.OnHandlerChanging(args);
+#if ANDROID
+        ChangingHandler(this,args);
+#endif
+    }
+
+    protected override void OnSizeAllocated(double width, double height)
+    {
+        base.OnSizeAllocated(width, height);
+#if WINDOWS || ANDROID
+        Source = new HtmlWebViewSource()
+        {
+            Html = _htmlCode
+        };
+#endif
+        
+#if WINDOWS
+
+        if(_server == null)
+        {
+            _server = new ËmbeddedServer();
+        }
+        _server.InitializeServer(Port);
+#endif
+    }
+#endregion
+#region Virtuals
     public virtual void OnLoad()
     {
 
@@ -91,27 +173,57 @@ public partial class Leaflet : WebView
     {
 
     }
-    #endregion
-
-    #region Actions
+#endregion
+#region Actions
     public void AddPin(params Pin[] pins)
     {
+
 
         pins.ToList().ForEach(pin =>
         {
             if (string.IsNullOrEmpty(pin.Key))
                 throw new PinMustHaveKeyException();
 
+            if(!(Pins?.FirstOrDefault(p => p.Key == pin.Key) is null))
+                throw new PinAlreadyExistException();
+#if ANDROID
+            CultureInfo.DefaultThreadCurrentCulture = new CultureInfo("en-EN");
+            ExecuteJavascript(this,$"AddPin({pin.Latitude},{pin.Longitude},`{pin.Key}`)");
+#else
+            ExecuteJavascriptFunctionAsync($"AddPin({pin.Latitude},{pin.Longitude},`{pin.Key}`)");
+#endif
             Pins.Add(pin);
         });
         PinAdded?.Invoke(this, pins);
         OnPinsAdded(pins);
     }
 
-    public void RemovePin(params Pin[] pins)
+    private async void ExecuteJavascriptFunctionAsync(string script) => await EvaluateJavaScriptAsync(script);
+
+    public Pin UpdatePin(Pin pin)
     {
+        if(string.IsNullOrEmpty(pin.Key))
+            throw new PinMustHaveKeyException();
+        
+        if(Pins.FirstOrDefault(p => p.Key == pin.Key) is null)
+            throw new PinMustExistException();
 
+        Pins.Remove(pin);
+        Pins.Add(pin);
+
+        return pin;
     }
-    #endregion
 
+    public void DeletePin(Pin pin)
+    {
+        if (string.IsNullOrEmpty(pin.Key))
+            throw new PinMustHaveKeyException();
+
+        if (Pins.FirstOrDefault(p => p.Key == pin.Key) is null)
+            throw new PinMustExistException();
+
+        Pins.Remove(pin);
+    }
+   
+#endregion
 }

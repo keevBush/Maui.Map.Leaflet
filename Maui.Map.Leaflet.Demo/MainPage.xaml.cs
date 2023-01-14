@@ -9,7 +9,7 @@
             InitializeComponent();
         }
 
-        private void OnCounterClicked(object sender, EventArgs e)
+        private void OnCounterClicked(object sender, System.EventArgs e)
         {
             count++;
 
@@ -19,6 +19,16 @@
                 CounterBtn.Text = $"Clicked {count} times";
 
             SemanticScreenReader.Announce(CounterBtn.Text);
+        }
+
+        private void Leaflet_MapCliqued(object sender, EventArgs.MapClickedEventArg e)
+        {
+            map.AddPin(new Models.Pin
+            {
+                Key =Guid.NewGuid().ToString(),
+                Latitude = e.PositionLatitude,
+                Longitude = e.PositionLongitude,
+            });
         }
     }
 }
