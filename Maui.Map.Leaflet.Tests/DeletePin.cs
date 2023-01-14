@@ -30,7 +30,7 @@ namespace Maui.Map.Leaflet.Tests
         {
             var pin = new Pin()
             {
-                Key = "pin"
+                Key = "pin-PinMustDecreaseLengthOfListPinsExist"
             };
             var map = new Leaflet();
             map.AddPin(pin);
@@ -46,7 +46,7 @@ namespace Maui.Map.Leaflet.Tests
         {
             var pin = new Pin()
             {
-                Key = "pin"
+                Key = "pin-PinMustExistBeforeDeleteIt"
             };
 
             var map = new Leaflet();

@@ -11,15 +11,16 @@ namespace Maui.Map.Leaflet.Tests
         {
             var pin = new Pin()
             {
-                Key = "pin"
+                Key = "pin-PinMustExistBeforeEditIt"
             };
             var leaflet = new Leaflet();
             leaflet.AddPin(pin);
+
             string pinInitString = pin.ToString();
             pin.Longitude = 10;
 
             leaflet.UpdatePin(pin);
-            var pinUpdated = leaflet.Pins.First(p => p.Key == "pin");
+            var pinUpdated = leaflet.Pins.First(p => p.Key == "pin-PinMustExistBeforeEditIt");
 
             Assert.NotEqual(pinInitString, pinUpdated.ToString());
         }
@@ -42,7 +43,7 @@ namespace Maui.Map.Leaflet.Tests
         public void RisePinMustExistException()
         {
 
-            var pin = new Pin() { Key = "pin" };
+            var pin = new Pin() { Key = "pin-RisePinMustExistException" };
 
             var leaflet = new Leaflet();
 

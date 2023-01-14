@@ -49,7 +49,7 @@ namespace Maui.Map.Leaflet.Tests
             //prepare
             var pin = new Pin
             {
-                Key = "pin-1",
+                Key = "pin-1-forAlreadyExist",
                 Latitude = 12,
                 Longitude = 15
             };
@@ -69,7 +69,7 @@ namespace Maui.Map.Leaflet.Tests
         [Theory]
         [InlineData(null)]
         [InlineData("")]
-        [InlineData("key")]
+        [InlineData("key-FinalizeThestTheory")]
         public void FinalizeThestTheory(string? key)
         {
             var map = new Leaflet();
